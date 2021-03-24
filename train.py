@@ -84,16 +84,25 @@ def visualize(model, obj, bbox, num_points=1000):
     ((x_min, x_max),(y_min, y_max),(z_min, z_max)) = bbox
 
     points_to_plot = []
+    batching = 1000
     while(len(points_to_plot) < num_points):
-        point = [random.uniform(x_min, x_max), random.uniform(y_min, y_max), random.uniform(z_min, z_max)]
-        if model(point) > .5:
-            points_to_plot.append(point)
+        points = [[random.uniform(x_min, x_max), random.uniform(y_min, y_max), random.uniform(z_min, z_max)] for _ in range(batching)]
+        # for p in points:
+        #     if obj.contains(p):
+        #         points_to_plot.append(p)
+        pred = model(torch.tensor(points)).reshape((batching,))
+        for i in range(pred.shape[0]):
+            if pred[i] > 0.5:
+                points_to_plot.append(points[i])
     
     xs = [p[0] for p in points_to_plot]
     ys = [p[1] for p in points_to_plot]
     zs = [p[2] for p in points_to_plot]
 
-    ax.scatter(xs, ys, zs)
+    ax1.scatter(xs, ys, zs)
+    ax1.set_xlim3d(left=x_min, right=x_max)
+    ax1.set_ylim3d(bottom=y_min, top=y_max)
+    ax1.set_zlim3d(bottom=z_min, top=z_max)
     plt.show()
 
 

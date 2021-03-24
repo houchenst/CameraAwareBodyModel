@@ -4,5 +4,5 @@ OBJ_FILE = "C:\\Users\Trevor\\Brown\\ivl-research\\data\\FinalBaseMesh.obj"
 
 mesh = Loader(OBJ_FILE)
 
-print(len(mesh.faces))
+print(mesh.faces)
 mesh.draw()
