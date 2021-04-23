@@ -1,8 +1,19 @@
 import random
 import numpy as np
+from scipy.stats import norm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+def random_cam_center(cam_radius):
+        '''
+        Returns a random point on the surface of the sphere centered at the origin with a radius of
+        self.cam_radius
+        '''
+        r_x = norm.rvs()
+        r_y = norm.rvs()
+        r_z = norm.rvs()
+        normalizer = cam_radius / ((r_x**2 + r_y**2 + r_z**2)**0.5)
+        return [r_x*normalizer, r_y*normalizer, r_z*normalizer]
 
 def rotation_matrix(cam_center, points_at=(0,0,0), inverse=False):
     '''
@@ -88,7 +99,7 @@ class Cuboid(object):
                         (center[2]-height/2., center[2]+height/2.))
 
         # the furthest occupied radius from the origin
-        self.max_radius = np.max(np.sqrt(np.sum(np.square(np.reshape(np.array(self.bounds), (-1,3))), axis=1)))
+        self.max_radius = np.sqrt(np.sum(np.max(np.square(np.array(self.bounds)), axis=1)))
         
         
 
@@ -134,9 +145,9 @@ class Cuboid(object):
         # make x, y and z coordinates in 3d camera space
         x_bound, y_bound = sensor_bounds
         x_pix, y_pix = sensor_size
-        xs_2d = np.linspace(-x_bound, x_bound, x_pix)
-        ys_2d = np.linspace(-y_bound, y_bound, y_pix)
-        xs, ys, zs = np.meshgrid(xs_2d, ys_2d, cam_space_zs)
+        xs_1d = np.linspace(-x_bound, x_bound, x_pix)
+        ys_1d = np.linspace(-y_bound, y_bound, y_pix)
+        xs, ys, zs = np.meshgrid(xs_1d, ys_1d, cam_space_zs)
         
         # the xs and ys are dependent on depth
         xs = xs * (zs/focal_length)
@@ -145,9 +156,14 @@ class Cuboid(object):
         # meshgrid output shape is (num_y, num_x, num_z)
         num_y, num_x, num_z = xs.shape
 
+        # return 5 3d occupancies along each ray as well
+        # each 3d occupancy is (x,y,z,occ)
+        # TODO: maybe change this to just one sample per ray
+        num_3d = 5
+        output_3d = np.zeros((num_y, num_x, num_3d))
+        coords_3d = np.zeros((num_y, num_x, num_3d, 3))
         
         output = np.zeros((num_y, num_x))
-        first=True
         R_inv = rotation_matrix(center, inverse=True)
         # R_inv = np.linalg.inv(rotation_matrix(center))
         C = np.array(center)
@@ -155,10 +171,13 @@ class Cuboid(object):
         for yi in range(num_y):
             for xi in range(num_x):
                 output[yi, xi] = max([self.contains(cam2world([xs[yi,xi,zi], ys[yi,xi,zi], zs[yi,xi,zi]])) for zi in range(num_z)])
-                # if yi == num_y//2 and xi == num_x//2:
-                #     for zi in range(xs.shape[2]):
-                #         print(f"Point {cam2world([xs[yi,xi,zi], ys[yi,xi,zi], zs[yi,xi,zi]])} : {self.contains(cam2world([xs[yi,xi,zi], ys[yi,xi,zi], zs[yi,xi,zi]]))}")
-                first=False
+                depths = random.sample(range(num_z), num_3d)
+                for i,zi in enumerate(depths):
+                    occ = self.contains(cam2world([xs[yi,xi,zi], ys[yi,xi,zi], zs[yi,xi,zi]]))
+                    output_3d[yi,xi,i] = occ
+                    coords_3d[yi,xi,i,:] = np.array(cam2world([xs[yi,xi,zi], ys[yi,xi,zi], zs[yi,xi,zi]]))
+
+
 
         # Visualize the sampling rays
         if plot_samples:
@@ -185,8 +204,8 @@ class Cuboid(object):
 
             plt.show()
 
-        
-        return output
+        xs, ys = np.meshgrid(xs_1d, ys_1d)
+        return output, xs, ys, output_3d, coords_3d
 
     def sample_surface_single(self, gaussian_noise=None):
         '''
@@ -252,7 +271,7 @@ if __name__ == "__main__":
 
     # ax.scatter(xs, ys)
 
-    plt.imshow(obj.contains_2d(center, 2.0, [0.5,0.5], [200,200], ray_samples=40, plot_samples=False))
+    plt.imshow(obj.contains_2d(center, 2.0, [0.5,0.5], [200,200], ray_samples=40, plot_samples=False)[0])
     obj.contains_2d(center, 2.0, [0.5,0.5], [6,6], ray_samples=10, plot_samples=True)
 
     plt.show()    
