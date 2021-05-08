@@ -1,1 +1,1 @@
-# NeuralBodyModel
+# CameraAwareBodyModel
