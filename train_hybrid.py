@@ -16,7 +16,7 @@ from data import OccDataset2D, OccDataset3DUVD
 hyperparams = {
     "batch_size" : 12,
     "learning_rate" :  1e-4,
-    "epochs" : 10,
+    "epochs" : 20,
     "layers" : 8,
     "hidden_size": 80,
 
@@ -98,6 +98,8 @@ def train(model, train_loader_2d, train_loader_3d, experiment):
             # log visualizations
             visualize_2d(model, obj, random_cam_center(hyperparams["cam_radius"]), show=False, log=True, experiment=experiment, epoch=e)
             # visualize_3d(model, obj, bbox, show=False, log=True, experiment=experiment, epoch=e)
+            torch.save(model.state_dict(), './saved_models/modelhybrid.pt')
+
 
 
 def test_2d(model, test_loader, experiment):

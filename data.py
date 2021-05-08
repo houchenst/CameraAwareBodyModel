@@ -1,3 +1,7 @@
+'''
+2D and 3D occupancy datasets
+'''
+
 import torch
 from torch.utils.data import Dataset
 import random

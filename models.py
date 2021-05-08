@@ -103,7 +103,8 @@ class UnstructuredHybrid(nn.Module):
         self.num_cam_params = num_cam_params
 
         # activation function
-        self.lr = nn.LeakyReLU(0.1)
+        # self.lr = nn.LeakyReLU(0.1)
+        self.lr = torch.sin
         self.sig = nn.Sigmoid()
 
         # other hyperparameters

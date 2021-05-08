@@ -1,3 +1,8 @@
+'''
+Includes functions for reparameterizing lines by their closes point to the origin
+and an angle around a plane
+'''
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
