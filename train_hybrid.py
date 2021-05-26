@@ -1,3 +1,7 @@
+'''
+Trains the 2D/3D occupancy model
+'''
+
 from comet_ml import Experiment
 from torch import nn
 import torch
@@ -25,6 +29,8 @@ hyperparams = {
     "sensor_size": [100, 100],
     "cam_radius": 3.0,
     "3d_ratio": 1,
+    # only used if NeRF style positional encodings are implemented 
+    "pos_embedding_size": 4,
 }
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # print(device)
@@ -126,7 +132,7 @@ def test_2d(model, test_loader, experiment):
         experiment.log_metric("2d loss", total_loss/total_points)
         experiment.log_metric("2d accuracy", total_correct/total_points)
 
-def test_3d(model, test_loader, experiment):
+def test_3d(model, cam_center, test_loader, experiment):
     '''
     Tests the model on validation data
     '''
@@ -140,7 +146,6 @@ def test_3d(model, test_loader, experiment):
             uv = uv.to(device)
             xyz = xyz.to(device)
             occ = occ.to(device)
-            cam_params = cam_params.to(device)
             pred = model(uv, cam_params, xyz=xyz).reshape((hyperparams["batch_size"],))
             loss = loss_fn(pred, occ)
             total_loss += float(loss)
@@ -159,9 +164,14 @@ def visualize_2d(model, obj, cam_center, show=True, log=False, experiment=None, 
         x_batch = np.reshape(x, (-1,1))
         y_batch = np.reshape(y, (-1,1))
         coord_batch = torch.hstack([torch.tensor(x_batch, dtype=torch.float32), torch.tensor(y_batch, dtype=torch.float32)])
+        # uv_feats = []
+        # for row in range(coord_batch.shape[0]):
+        #     uv_feats.append(torch.tensor(uv_features(list(coord_batch[row,:]), hyperparams["sensor_bounds"][0], hyperparams["sensor_bounds"][1])))
+        # coord_batch = torch.vstack(uv_feats)
         r = rotation_matrix(cam_center, inverse=True).flatten()
         cam_params = list(r) + cam_center
-        params_batch = torch.tensor([cam_params]*coord_batch.shape[0], dtype=torch.float32)
+        # view_embedding = angle_features(cam_center, L=hyperparams["pos_embedding_size"])
+        params_batch = torch.tensor([view_embedding]*coord_batch.shape[0], dtype=torch.float32)
         coord_batch = coord_batch.to(device)
         params_batch = params_batch.to(device)
         model_labels = model.forward(coord_batch, params_batch)
@@ -285,7 +295,7 @@ if __name__ == "__main__":
     bbox = ((-1.,1.), (-1.,1.), (-1.,1.))
 
     # make model
-    model = UnstructuredHybrid(num_layers=hyperparams["layers"], hidden_size=hyperparams["hidden_size"]).to(device)
+    model = UnstructuredHybrid(num_layers=hyperparams["layers"], hidden_size=hyperparams["hidden_size"], num_cam_params=12, num_uv_params=2).to(device)
 
     if args.load:
         print("loading saved model...")

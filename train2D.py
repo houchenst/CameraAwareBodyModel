@@ -1,3 +1,7 @@
+'''
+Trains the 2D occupancy model
+'''
+
 from comet_ml import Experiment
 from torch import nn
 import torch
@@ -55,8 +59,9 @@ def train(model, train_loader, experiment):
                 optimizer.step()
                 total_loss += float(loss)
                 total_points += hyperparams["batch_size"]
-            if e % 10 == 0:
-                print(f"Epoch {e} Average Training Loss: {total_loss/total_points}\n")
+            # print loss, log image
+            print(f"Epoch {e} Average Training Loss: {total_loss/total_points}\n")
+            visualize(model, obj, random_cam_center(hyperparams["cam_radius"]), show=False, log=True, experiment=experiment, epoch=e)
 
 
 
@@ -85,7 +90,7 @@ def test(model, test_loader, experiment):
         experiment.log_metric("loss", total_loss/total_points)
         experiment.log_metric("accuracy", total_correct/total_points)
 
-def visualize(model, obj, cam_center):
+def visualize(model, obj, cam_center, show=True, log=False, experiment=None, epoch=None):
     model = model.eval()
     with torch.no_grad():
         l, x, y, _, _ = obj.contains_2d(cam_center, hyperparams["focal_length"], hyperparams["sensor_bounds"], hyperparams["sensor_size"])
@@ -94,10 +99,12 @@ def visualize(model, obj, cam_center):
         coord_batch = torch.hstack([torch.tensor(x_batch, dtype=torch.float32), torch.tensor(y_batch, dtype=torch.float32)])
         r = rotation_matrix(cam_center, inverse=True).flatten()
         cam_params = list(r) + cam_center
-        params_batch = torch.tensor([cam_params]*coord_batch.shape[0], dtype=torch.float32)
+        view_embedding = angle_features(cam_center)
+        ve_batch = torch.tensor([view_embedding]*coord_batch.shape[0], dtype=torch.float32)
+        # params_batch = torch.tensor([cam_params]*coord_batch.shape[0], dtype=torch.float32)
         coord_batch = coord_batch.to(device)
-        params_batch = params_batch.to(device)
-        model_labels = model.forward(coord_batch, params_batch)
+        # params_batch = params_batch.to(device)
+        model_labels = model.forward(coord_batch, ve_batch)
         model_labels = np.reshape(model_labels.cpu().numpy(), l.shape)
 
         # show results
@@ -108,7 +115,15 @@ def visualize(model, obj, cam_center):
         ax1.set_title("Ground Truth")
         ax2.imshow(model_labels)
         ax2.set_title("2D Occ Network")
-        plt.show()
+
+        if show:
+            plt.show()
+        if log:
+            if experiment is None:
+                print("Must provide experiment to visualizer in order to log figure")
+            else:
+                experiment.log_figure(figure=f, figure_name=f"epoch_{epoch}_2d")
+                plt.close(f)
 
 
 if __name__ == "__main__":

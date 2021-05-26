@@ -1,3 +1,7 @@
+'''
+Defines different models
+'''
+
 from torch import nn
 import torch
 
@@ -44,7 +48,7 @@ class Unstructured2D(nn.Module):
     Input parameters are just the extrinsics, 3x3 rotation matrix + 3 camera center
     '''
 
-    def __init__(self, hidden_size=80, num_layers=8, num_cam_params=12):
+    def __init__(self, hidden_size=80, num_layers=8, num_cam_params=6):
         super().__init__()
         # store hyperparameters
         self.hidden_size = hidden_size
@@ -95,16 +99,17 @@ class UnstructuredHybrid(nn.Module):
     Also outputs 3d occ with the additional parameter d (ray depth)
     '''
 
-    def __init__(self, hidden_size=40, num_layers=4, num_cam_params=12):
+    def __init__(self, hidden_size=40, num_layers=4, num_cam_params=12, num_uv_params=2):
         super().__init__()
         # store hyperparameters
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_cam_params = num_cam_params
+        self.num_uv_params = num_uv_params
 
         # activation function
-        # self.lr = nn.LeakyReLU(0.1)
-        self.lr = torch.sin
+        self.lr = nn.LeakyReLU(0.1)
+        # self.lr = torch.sin
         self.sig = nn.Sigmoid()
 
         # other hyperparameters
@@ -118,7 +123,7 @@ class UnstructuredHybrid(nn.Module):
         self.cam_params_preprocess1 = nn.Linear(self.num_cam_params, self.cam_feats)
         self.cam_params_preprocess2 = nn.Linear(self.cam_feats, self.cam_feats)
         # uv embeddings
-        self.uv_preprocess1 = nn.Linear(2, self.cam_feats)
+        self.uv_preprocess1 = nn.Linear(self.num_uv_params, self.cam_feats)
         self.uv_preprocess2 = nn.Linear(self.cam_feats, self.cam_feats)
         # main network
         first_layer = nn.Linear(self.cam_feats*2, hidden_size)

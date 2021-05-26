@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import Dataset
 import random
 import numpy as np
-from utils import rotation_matrix, random_cam_center
+from utils import rotation_matrix, random_cam_center, angle_features, uv_features
 from tqdm import tqdm
 
 class OccDataset3D(Dataset):
@@ -73,9 +73,10 @@ class OccDataset2D(Dataset):
         self.sensor_size = sensor_size
         self.cam_radius = cam_radius
         self.ray_samples = ray_samples
+        # self.pos_embedding_size = pos_embedding_size
 
         self.data = []
-        self.cam_params = []
+        self.view_embeddings = []
         self.labels = []
 
         # we want a variety of camera views, so if the sensor size is large, we might not use every pixel
@@ -90,13 +91,16 @@ class OccDataset2D(Dataset):
             x = x.flatten()
             y = y.flatten()
             r = rotation_matrix(cam_center, inverse=True).flatten()
-            cam_params = list(r) + cam_center
+            # cam_params = list(r) + cam_center
+            view_embedding = angle_features(cam_center)
 
             # samples some fraction of the pixels to add to our data
             for i in random.sample(range(l.shape[0]), self.samples_per_camera):
                 self.labels.append(torch.tensor(l[i], dtype=torch.float32))
-                self.data.append(torch.tensor([x[i],y[i]], dtype=torch.float32))
-                self.cam_params.append(torch.tensor(cam_params, dtype=torch.float32))
+                # self.data.append(torch.tensor(uv_features([x[i],y[i]], self.sensor_size[0], self.sensor_size[1]), dtype=torch.float32))
+                self.data.append(torch.tensor([x[i], y[i]], dtype=torch.float32))
+                # self.cam_params.append(torch.tensor(cam_params, dtype=torch.float32))
+                self.view_embeddings.append(torch.tensor(view_embedding, dtype=torch.float32))
             pbar.update(self.samples_per_camera)
         tqdm._instances.clear()
 
@@ -113,7 +117,7 @@ class OccDataset2D(Dataset):
         '''
         Gets a tuple of (point, label) at given index
         '''
-        return self.data[idx], self.labels[idx], self.cam_params[idx]
+        return self.data[idx], self.labels[idx], self.view_embeddings[idx]
 
 class OccDataset3DUVD(Dataset):
 
@@ -138,6 +142,7 @@ class OccDataset3DUVD(Dataset):
         self.sensor_size = sensor_size
         self.cam_radius = cam_radius
         self.ray_samples = ray_samples
+        self.pos_embedding_size = pos_embedding_size
 
         self.uv = []
         self.xyz = []
@@ -158,13 +163,16 @@ class OccDataset3DUVD(Dataset):
             v = np.stack([v]*5, axis=-1).flatten()
             r = rotation_matrix(cam_center, inverse=True).flatten()
             cam_params = list(r) + cam_center
+            # view_embedding = angle_features(cam_center, L=self.pos_embedding_size)
 
             # samples some fraction of the pixels to add to our data
             for i in random.sample(range(coords_3d.shape[0]), self.samples_per_camera):
                 self.labels.append(torch.tensor(occ_3d[i], dtype=torch.float32))
                 self.xyz.append(torch.tensor(coords_3d[i], dtype=torch.float32))
+                # self.uv.append(torch.tensor(uv_features([u[i],v[i]], self.sensor_size[0], self.sensor_size[1]), dtype=torch.float32))
                 self.uv.append(torch.tensor([u[i], v[i]], dtype=torch.float32))
                 self.cam_params.append(torch.tensor(cam_params, dtype=torch.float32))
+                # self.view_embeddings.append(torch.tensor(view_embedding, dtype=torch.float32))
             pbar.update(self.samples_per_camera)
         tqdm._instances.clear()
 

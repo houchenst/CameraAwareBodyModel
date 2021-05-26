@@ -1,3 +1,7 @@
+'''
+Trains the 3D occupancy model
+'''
+
 from torch import nn
 import torch
 import argparse

@@ -1,8 +1,14 @@
+'''
+Utility functions
+'''
+
+
 import random
 import numpy as np
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import math
 
 def random_cam_center(cam_radius):
         '''
@@ -14,6 +20,46 @@ def random_cam_center(cam_radius):
         r_z = norm.rvs()
         normalizer = cam_radius / ((r_x**2 + r_y**2 + r_z**2)**0.5)
         return [r_x*normalizer, r_y*normalizer, r_z*normalizer]
+
+def angle_features(cam_center, L=4):
+    '''
+    Implements the positional encoding described in section 5.1 of the NeRF paper and applies it to the viewing direction.
+    Input is a camera center, and viewing direction is calculated assuming that the camera is facing origin
+    '''
+    x,y,z = cam_center
+    psi = -math.atan(z/x)
+    Nxz = (x**2 + z**2)**(0.5)
+    theta = math.atan(y/Nxz)
+
+    # nerf uses L=4
+    # features = []
+    # for i in range(L):
+    #     features.append(math.sin(2**i * theta/2))
+    #     features.append(math.cos(2**i * theta/2))
+    #     features.append(math.sin(2**i * rho/2))
+    #     features.append(math.cos(2**i * rho/2))
+    
+    return [psi, math.sin(psi), math.cos(psi), theta, math.sin(theta), math.cos(theta)]
+
+def uv_features(uv, max_u, max_v, L=4):
+    '''
+    Implements positional encoding as described in section 5.1 of teh NeRF paper and applies it to a uv coordinate. 
+    The max coordinate values are input so that the coordinates can be rescaled to the range -1 -> 1
+    '''
+
+    scaled_u = uv[0] / max_u
+    scaled_v = uv[1] / max_v
+
+    features = []
+    for i in range(L):
+        features.append(math.sin(2**i * scaled_u/2))
+        features.append(math.cos(2**i * scaled_u/2))
+        features.append(math.sin(2**i * scaled_v/2))
+        features.append(math.cos(2**i * scaled_v/2))
+
+    return features
+        
+
 
 def rotation_matrix(cam_center, points_at=(0,0,0), inverse=False):
     '''

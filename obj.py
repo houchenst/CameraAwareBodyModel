@@ -1,3 +1,8 @@
+'''
+Loads mesh objects and implements a 3D occupancy function for the mesh
+Not functional yet
+'''
+
 from tk3dv.nocstools.obj_loader import Loader
 import numpy as np
 import matplotlib.pyplot as plt
